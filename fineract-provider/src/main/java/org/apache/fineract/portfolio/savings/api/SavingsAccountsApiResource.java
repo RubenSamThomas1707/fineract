@@ -41,9 +41,11 @@ import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
 import jakarta.ws.rs.core.UriInfo;
 import java.io.InputStream;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.lang3.StringUtils;
@@ -55,8 +57,10 @@ import org.apache.fineract.infrastructure.bulkimport.service.BulkImportWorkbookP
 import org.apache.fineract.infrastructure.bulkimport.service.BulkImportWorkbookService;
 import org.apache.fineract.infrastructure.core.api.ApiParameterHelper;
 import org.apache.fineract.infrastructure.core.api.ApiRequestParameterHelper;
+import org.apache.fineract.infrastructure.core.data.ApiParameterError;
 import org.apache.fineract.infrastructure.core.data.CommandProcessingResult;
 import org.apache.fineract.infrastructure.core.data.UploadRequest;
+import org.apache.fineract.infrastructure.core.exception.PlatformApiDataValidationException;
 import org.apache.fineract.infrastructure.core.exception.UnrecognizedQueryParamException;
 import org.apache.fineract.infrastructure.core.serialization.ApiRequestJsonSerializationSettings;
 import org.apache.fineract.infrastructure.core.serialization.DefaultToApiJsonSerializer;
@@ -124,6 +128,8 @@ public class SavingsAccountsApiResource {
     public String retrieveAll(@Context final UriInfo uriInfo,
             @QueryParam("sqlSearch") @Parameter(description = "sqlSearch") final String sqlSearch,
             @QueryParam("externalId") @Parameter(description = "externalId") final String externalId,
+            @QueryParam("birthMonth") @Parameter(description = "birthMonth") final Integer birthMonth,
+            @QueryParam("birthDay") @Parameter(description = "birthDay") final Integer birthDay,
             // @QueryParam("underHierarchy") final String hierarchy,
             @QueryParam("offset") @Parameter(description = "offset") final Integer offset,
             @QueryParam("limit") @Parameter(description = "limit") final Integer limit,
@@ -132,7 +138,45 @@ public class SavingsAccountsApiResource {
 
         context.authenticatedUser().validateHasReadPermission(SavingsApiConstants.SAVINGS_ACCOUNT_RESOURCE_NAME);
 
-        final SearchParameters searchParameters = SearchParameters.forSavings(sqlSearch, externalId, offset, limit, orderBy, sortOrder);
+        final List<ApiParameterError> errors = new ArrayList<>();
+        // This validation is to check if both fields are empty
+        if ((birthMonth == null) && (birthDay == null)) {
+            errors.add(ApiParameterError.parameterError(
+                    "validation.msg.validation.errors.exist",
+                    "birthMonth and birthDay must be provided together", 
+                    "birthMonth, birthDay"
+                )
+            );
+        }
+        // This validation is to check if the birthMonth passed in by the user
+        // is a valid one and between January and December
+        else if (birthMonth != null && (birthMonth < 1 || birthMonth > 12)) {
+            errors.add(ApiParameterError.parameterError(
+                    "validation.msg.validation.errors.exist",
+                    "birthMonth must be between 1 and 12", 
+                    "birthMonth"
+                )
+            );
+        }
+        // This validation is to check if the birthDay passed in by the user
+        // is a valid one and between 1 to 31
+        else if (birthDay != null && (birthDay < 1 || birthDay > 31)) {
+            errors.add(ApiParameterError.parameterError(
+                    "validation.msg.validation.errors.exist",
+                    "birthDay must be between 1 and 31", 
+                    "birthDay"
+                )
+            );
+        }
+
+        if (!errors.isEmpty()) {
+            throw new PlatformApiDataValidationException(errors);
+        }
+
+        // Update the search param method to pass in the new DOB related fields
+        final SearchParameters searchParameters = SearchParameters.forSavings(
+            sqlSearch, externalId, offset, limit, orderBy, sortOrder,birthMonth, birthDay
+        );
 
         final Page<SavingsAccountData> products = savingsAccountReadPlatformService.retrieveAll(searchParameters);
 
