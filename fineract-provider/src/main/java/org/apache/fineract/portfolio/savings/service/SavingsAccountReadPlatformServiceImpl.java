@@ -192,7 +192,7 @@ public class SavingsAccountReadPlatformServiceImpl implements SavingsAccountRead
         sqlBuilder.append(" join m_office o on o.id = c.office_id");
         sqlBuilder.append(" where o.hierarchy like ?");
 
-        final Object[] objectArray = new Object[2];
+        Object[] objectArray = new Object[2];
         objectArray[0] = hierarchySearchString;
         int arrayPos = 1;
         if (searchParameters != null) {
@@ -212,6 +212,17 @@ public class SavingsAccountReadPlatformServiceImpl implements SavingsAccountRead
                 sqlBuilder.append("and c.office_id =?");
                 objectArray[arrayPos] = searchParameters.getOfficeId();
                 arrayPos = arrayPos + 1;
+            }
+            // Add DOB information to SQL query if user has passed in that information
+            if (searchParameters.hasBirthday()) {
+                sqlBuilder.append(" and EXTRACT(MONTH FROM c.date_of_birth) = ?");
+                sqlBuilder.append(" and EXTRACT(DAY FROM c.date_of_birth) = ?");
+                // Need to clone this array since we only need to append the
+                // DOB related parameters if its passed in
+                // So we need to clone and increase the size by 2 to hold the month and the day
+                objectArray = Arrays.copyOf(objectArray, objectArray.length + 2);
+                objectArray[arrayPos++] = searchParameters.getBirthMonth();
+                objectArray[arrayPos++] = searchParameters.getBirthDay();
             }
             if (searchParameters.isOrderByRequested()) {
                 sqlBuilder.append(" order by ").append(searchParameters.getOrderBy());
