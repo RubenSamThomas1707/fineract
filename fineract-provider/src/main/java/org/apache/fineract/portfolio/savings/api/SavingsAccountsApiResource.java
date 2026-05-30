@@ -139,8 +139,11 @@ public class SavingsAccountsApiResource {
         context.authenticatedUser().validateHasReadPermission(SavingsApiConstants.SAVINGS_ACCOUNT_RESOURCE_NAME);
 
         final List<ApiParameterError> errors = new ArrayList<>();
-        // This validation is to check if both fields are empty
-        if ((birthMonth == null) && (birthDay == null)) {
+        // This validation is to check if only one field is passed in
+        // Validation is because we need both fields together
+        if (
+            ((birthMonth == null) && (birthDay != null)) || ((birthMonth != null) && (birthDay == null))
+        ) {
             errors.add(ApiParameterError.parameterError(
                     "validation.msg.validation.errors.exist",
                     "birthMonth and birthDay must be provided together", 
